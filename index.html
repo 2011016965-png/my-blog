@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的博客</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <div class="container">
+      <h1 class="logo"><a href="#/">✍ 我的博客</a></h1>
+      <nav class="nav">
+        <a href="#/">首页</a>
+        <a href="https://github.com" target="_blank">关于</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main container">
+    <!-- 文章列表页 -->
+    <section id="home-page">
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="搜索文章标题、摘要、分类...">
+        <span class="search-icon">🔍</span>
+      </div>
+      <div id="article-list"></div>
+      <div id="search-empty" class="empty-msg" style="display:none;">没有找到匹配的文章</div>
+    </section>
+
+    <!-- 文章详情页 -->
+    <section id="post-page" style="display:none;">
+      <button id="back-btn" class="back-btn">← 返回首页</button>
+      <article id="post-content"></article>
+      <section class="comments">
+        <h3>评论</h3>
+        <div id="giscus-container"></div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>© 2026 我的博客 · 用 ❤️ 和纯 HTML/CSS/JS 构建</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
