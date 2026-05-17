@@ -265,65 +265,46 @@ function renderPost(id) {
 
 // === 环境音乐（Web Audio API 生成） ===
 let musicPlaying = false;
-let audioCtx = null;
-let masterGain = null;
+let ambientNodes = null;
 
 function createAmbient() {
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  masterGain = audioCtx.createGain();
-  masterGain.gain.value = 0.12;
-  masterGain.connect(audioCtx.destination);
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const master = ctx.createGain();
+  master.gain.value = 0.35;
+  master.connect(ctx.destination);
 
-  // 五声音阶的和声频率，听起来宁静自然
+  // 五声音阶和声，营造宁静氛围
   const freqs = [130.81, 164.81, 196.00, 220.00, 261.63];
+  const oscillators = [];
+
   freqs.forEach(function(freq, i) {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
+    const osc = ctx.createOscillator();
+    const oscGain = ctx.createGain();
     osc.type = 'sine';
     osc.frequency.value = freq;
-    gain.gain.value = 0.15;
-    // 缓慢的淡入淡出
-    gain.gain.setValueAtTime(0, audioCtx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.5 + i * 0.3);
-    osc.connect(gain);
-    gain.connect(masterGain);
+    oscGain.gain.value = 0;
+    oscGain.gain.setValueAtTime(0, ctx.currentTime);
+    oscGain.gain.linearRampToValueAtTime(0.18, ctx.currentTime + 0.8 + i * 0.4);
+    osc.connect(oscGain);
+    oscGain.connect(master);
     osc.start();
-    // 微微颤音
-    const lfo = audioCtx.createOscillator();
-    const lfoGain = audioCtx.createGain();
-    lfo.frequency.value = 0.1 + i * 0.05;
-    lfoGain.gain.value = 1.5;
-    lfo.connect(lfoGain);
-    lfoGain.connect(osc.frequency);
-    lfo.start();
+    oscillators.push(osc);
   });
+
+  ambientNodes = { ctx, master, oscillators };
 }
 
 function destroyAmbient() {
-  if (audioCtx && audioCtx.state !== 'closed') {
-    audioCtx.close();
+  if (ambientNodes) {
+    try {
+      ambientNodes.oscillators.forEach(function(o) { o.stop(); });
+      ambientNodes.ctx.close();
+    } catch(e) {}
+    ambientNodes = null;
   }
-  audioCtx = null;
-  masterGain = null;
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-  const toggle = document.getElementById('music-toggle');
-  const player = document.getElementById('music-player');
-
-  toggle.addEventListener('click', function() {
-    if (musicPlaying) {
-      destroyAmbient();
-      toggle.textContent = '🎵';
-      player.classList.remove('playing');
-    } else {
-      createAmbient();
-      toggle.textContent = '🎶';
-      player.classList.add('playing');
-    }
-    musicPlaying = !musicPlaying;
-  });
-});
+// 音乐按钮事件在下面的统一初始化中绑定
 
 // === 路由 ===
 function route() {
@@ -407,6 +388,22 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     btn.disabled = false;
     btn.textContent = '发布';
+  });
+
+  // 音乐播放按钮
+  const toggle = document.getElementById('music-toggle');
+  const player = document.getElementById('music-player');
+  toggle.addEventListener('click', function() {
+    if (musicPlaying) {
+      destroyAmbient();
+      toggle.textContent = '🎵';
+      player.classList.remove('playing');
+    } else {
+      createAmbient();
+      toggle.textContent = '🎶';
+      player.classList.add('playing');
+    }
+    musicPlaying = !musicPlaying;
   });
 
   route();
