@@ -1,5 +1,17 @@
-// === 文章数据 ===
-const articles = [
+// === Firebase 初始化 ===
+const firebaseConfig = {
+  apiKey: "AIzaSyAIjFghcY7cM2IH9s0HByisCtKM9hy4RQU",
+  authDomain: "my-blog-10418.firebaseapp.com",
+  projectId: "my-blog-10418",
+  storageBucket: "my-blog-10418.firebasestorage.app",
+  messagingSenderId: "483377538646",
+  appId: "1:483377538646:web:520ff6348ddc073a0ebdf7"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// === 初始示例文章 ===
+const SEED_ARTICLES = [
   {
     id: 1,
     title: "开始写博客了",
@@ -86,6 +98,95 @@ const articles = [
   }
 ];
 
+// === 全局文章列表 ===
+let articles = [];
+
+// === 从 Firestore 加载文章 ===
+async function loadArticles() {
+  try {
+    const snapshot = await db.collection('articles').orderBy('createdAt', 'desc').get();
+    const firestoreArticles = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: data.originId || doc.id,
+        title: data.title,
+        date: data.date,
+        category: data.category,
+        summary: data.summary,
+        body: data.body
+      };
+    });
+    // 合并：种子文章 + 云端文章，去重（云端覆盖同 id 种子文章）
+    const seedIds = new Set(SEED_ARTICLES.map(a => String(a.id)));
+    const cloudIds = new Set(firestoreArticles.map(a => String(a.id)));
+    const merged = [...firestoreArticles];
+    SEED_ARTICLES.forEach(a => {
+      if (!cloudIds.has(String(a.id))) {
+        merged.push(a);
+      }
+    });
+    // 按日期降序排列
+    merged.sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+    articles = merged;
+  } catch (e) {
+    console.warn('无法加载云端文章，使用本地文章', e);
+    articles = [...SEED_ARTICLES];
+  }
+}
+
+// === 保存文章到 Firestore ===
+async function saveArticle(title, category, bodyHTML) {
+  const now = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const summary = bodyHTML.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+  const originId = 'u-' + Date.now();
+
+  await db.collection('articles').add({
+    title: title,
+    category: category,
+    date: dateStr,
+    summary: summary + (summary.length >= 120 ? '...' : ''),
+    body: bodyHTML,
+    originId: originId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  });
+
+  return originId;
+}
+
+// === Markdown 转 HTML（简易） ===
+function markdownToHTML(md) {
+  let html = md;
+  // 转义 HTML
+  html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // 代码块 ```
+  html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+  // 行内代码 ``
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  // 标题 ###
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  // 标题 ##
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  // 标题 #
+  html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+  // 粗体
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // 斜体
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  // 空行分隔段落
+  html = html.replace(/\n\n/g, '</p><p>');
+  // 单换行变 <br>
+  html = html.replace(/\n/g, '<br>');
+  // 包裹段落
+  html = '<p>' + html + '</p>';
+  // 清理空段落
+  html = html.replace(/<p><\/p>/g, '');
+  // 清理 pre 内的 br
+  html = html.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, function(m, inner) {
+    return '<pre><code>' + inner.replace(/<br>/g, '\n').replace(/<p>/g, '').replace(/<\/p>/g, '') + '</code></pre>';
+  });
+  return html;
+}
 
 // === 渲染文章列表 ===
 function renderHome(query) {
@@ -125,7 +226,6 @@ const GISCUS_CONFIG = {
 };
 
 function loadGiscus(term) {
-  // 移除旧的 Giscus
   const oldScript = document.querySelector('script[src*="giscus"]');
   if (oldScript) oldScript.remove();
   const oldFrame = document.querySelector('#giscus-container iframe');
@@ -151,7 +251,7 @@ function loadGiscus(term) {
 
 // === 渲染文章详情 ===
 function renderPost(id) {
-  const article = articles.find(a => a.id === id);
+  const article = articles.find(a => String(a.id) === String(id));
   if (!article) return;
 
   document.getElementById('post-content').innerHTML = `
@@ -173,15 +273,24 @@ function route() {
   const hash = location.hash.slice(1) || '/';
   const homePage = document.getElementById('home-page');
   const postPage = document.getElementById('post-page');
-  const match = hash.match(/^\/post\/(\d+)$/);
+  const publishPage = document.getElementById('publish-page');
 
-  if (match) {
-    homePage.style.display = 'none';
+  homePage.style.display = 'none';
+  postPage.style.display = 'none';
+  publishPage.style.display = 'none';
+
+  const postMatch = hash.match(/^\/post\/(\S+)$/);
+
+  if (hash === '/publish') {
+    publishPage.style.display = 'block';
+    document.getElementById('publish-success').style.display = 'none';
+    document.getElementById('publish-form').style.display = '';
+    window.scrollTo(0, 0);
+  } else if (postMatch) {
     postPage.style.display = 'block';
-    renderPost(parseInt(match[1]));
+    renderPost(postMatch[1]);
     window.scrollTo(0, 0);
   } else {
-    postPage.style.display = 'none';
     homePage.style.display = 'block';
     document.getElementById('search-input').value = '';
     renderHome('');
@@ -190,14 +299,56 @@ function route() {
 
 window.addEventListener('hashchange', route);
 
-// === 搜索 ===
-document.addEventListener('DOMContentLoaded', function() {
+// === 初始化 ===
+document.addEventListener('DOMContentLoaded', async function() {
+  await loadArticles();
+
   document.getElementById('search-input').addEventListener('input', function() {
     renderHome(this.value);
   });
 
   document.getElementById('back-btn').addEventListener('click', function() {
     location.hash = '#/';
+  });
+
+  document.getElementById('back-btn2').addEventListener('click', function() {
+    location.hash = '#/';
+  });
+
+  document.getElementById('publish-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const title = document.getElementById('publish-title').value.trim();
+    const category = document.getElementById('publish-category').value;
+    const bodyMD = document.getElementById('publish-body').value.trim();
+    if (!title || !category || !bodyMD) return;
+
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.textContent = '发布中...';
+
+    try {
+      const bodyHTML = markdownToHTML(bodyMD);
+      const newId = await saveArticle(title, category, bodyHTML);
+      // 添加到本地列表头部
+      const now = new Date();
+      const dateStr = now.toISOString().split('T')[0];
+      const summary = bodyHTML.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
+      articles.unshift({
+        id: newId,
+        title: title,
+        date: dateStr,
+        category: category,
+        summary: summary + (summary.length >= 120 ? '...' : ''),
+        body: bodyHTML
+      });
+      this.style.display = 'none';
+      document.getElementById('publish-success').style.display = 'block';
+    } catch (err) {
+      alert('发布失败：' + err.message);
+    }
+
+    btn.disabled = false;
+    btn.textContent = '发布';
   });
 
   route();

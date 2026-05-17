@@ -25,9 +25,17 @@ a:hover { text-decoration: underline; }
 .header .container { display: flex; justify-content: space-between; align-items: center; }
 .logo { font-size: 1.4rem; }
 .logo a { color: #111; }
-.nav { display: flex; gap: 20px; }
+.nav { display: flex; gap: 16px; align-items: center; }
 .nav a { color: #666; font-size: 0.95rem; }
 .nav a:hover { color: #2563eb; text-decoration: none; }
+.nav .btn-publish {
+  background: #2563eb;
+  color: #fff;
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+.nav .btn-publish:hover { background: #1d4ed8; color: #fff; text-decoration: none; }
 
 /* === Main === */
 .main { min-height: calc(100vh - 140px); padding-top: 32px; padding-bottom: 40px; }
@@ -137,6 +145,51 @@ a:hover { text-decoration: underline; }
 .comments h3 { font-size: 1.15rem; color: #111; margin-bottom: 20px; }
 
 /* Giscus 容器会在评论区域自动嵌入 iframe */
+
+/* === Publish Page === */
+.publish-title { font-size: 1.4rem; color: #111; margin-bottom: 20px; }
+
+.publish-form { display: flex; flex-direction: column; gap: 14px; }
+.publish-form input,
+.publish-form select,
+.publish-form textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background: #fff;
+}
+.publish-form input:focus,
+.publish-form select:focus,
+.publish-form textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+.publish-form textarea { resize: vertical; min-height: 300px; line-height: 1.6; }
+.publish-form select { cursor: pointer; color: #333; }
+
+.publish-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.publish-hint { font-size: 0.85rem; color: #aaa; }
+.publish-actions button {
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  padding: 10px 28px;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.publish-actions button:hover { background: #1d4ed8; }
+.publish-actions button:disabled { background: #93c5fd; cursor: not-allowed; }
 
 /* === Footer === */
 .footer {
