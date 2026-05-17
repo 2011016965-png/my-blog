@@ -263,25 +263,63 @@ function renderPost(id) {
   loadGiscus('post-' + id);
 }
 
-// === 音乐播放器 ===
+// === 环境音乐（Web Audio API 生成） ===
 let musicPlaying = false;
+let audioCtx = null;
+let masterGain = null;
+
+function createAmbient() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.12;
+  masterGain.connect(audioCtx.destination);
+
+  // 五声音阶的和声频率，听起来宁静自然
+  const freqs = [130.81, 164.81, 196.00, 220.00, 261.63];
+  freqs.forEach(function(freq, i) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.value = 0.15;
+    // 缓慢的淡入淡出
+    gain.gain.setValueAtTime(0, audioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.5 + i * 0.3);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start();
+    // 微微颤音
+    const lfo = audioCtx.createOscillator();
+    const lfoGain = audioCtx.createGain();
+    lfo.frequency.value = 0.1 + i * 0.05;
+    lfoGain.gain.value = 1.5;
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+    lfo.start();
+  });
+}
+
+function destroyAmbient() {
+  if (audioCtx && audioCtx.state !== 'closed') {
+    audioCtx.close();
+  }
+  audioCtx = null;
+  masterGain = null;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   const toggle = document.getElementById('music-toggle');
-  const audio = document.getElementById('bg-music');
   const player = document.getElementById('music-player');
 
   toggle.addEventListener('click', function() {
     if (musicPlaying) {
-      audio.pause();
+      destroyAmbient();
       toggle.textContent = '🎵';
       player.classList.remove('playing');
     } else {
-      audio.play().then(() => {
-        toggle.textContent = '🎶';
-        player.classList.add('playing');
-      }).catch(() => {
-        alert('音乐加载中，请再点一次');
-      });
+      createAmbient();
+      toggle.textContent = '🎶';
+      player.classList.add('playing');
     }
     musicPlaying = !musicPlaying;
   });
