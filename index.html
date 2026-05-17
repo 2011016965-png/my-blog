@@ -7,6 +7,14 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <!-- 音乐播放器 -->
+  <div id="music-player" class="music-player" title="播放音乐">
+    <button id="music-toggle" class="music-toggle">🎵</button>
+    <audio id="bg-music" loop preload="none">
+      <source src="https://cdn.pixabay.com/audio/2022/10/14/audio_9937677282.mp3" type="audio/mpeg">
+    </audio>
+  </div>
+
   <header class="header">
     <div class="container">
       <h1 class="logo"><a href="#/">✍ 我的博客</a></h1>
@@ -20,6 +28,13 @@
   <main class="main container">
     <!-- 文章列表页 -->
     <section id="home-page">
+      <!-- 首页 Banner -->
+      <div class="hero-banner">
+        <div class="hero-overlay">
+          <h2>分享思考，记录生活</h2>
+          <p>每个人都可以在这里书写自己的故事</p>
+        </div>
+      </div>
       <div class="search-bar">
         <input type="text" id="search-input" placeholder="搜索文章标题、摘要、分类...">
         <span class="search-icon">🔍</span>
@@ -50,6 +65,7 @@
           <option value="生活">生活</option>
           <option value="随笔">随笔</option>
         </select>
+        <input type="url" id="publish-image" placeholder="封面图片链接（可选，粘贴 Unsplash 等图片的网址）">
         <textarea id="publish-body" placeholder="文章正文（支持 Markdown 格式）" required rows="16"></textarea>
         <div class="publish-actions">
           <span class="publish-hint">标题、分类和正文都要填哦</span>

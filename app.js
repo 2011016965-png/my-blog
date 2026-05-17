@@ -1,4 +1,3 @@
-// === Firebase 初始化 ===
 const firebaseConfig = {
   apiKey: "AIzaSyAIjFghcY7cM2IH9s0HByisCtKM9hy4RQU",
   authDomain: "my-blog-10418.firebaseapp.com",
@@ -17,6 +16,7 @@ const SEED_ARTICLES = [
     title: "开始写博客了",
     date: "2026-05-10",
     category: "随笔",
+    image: "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=800&q=80",
     summary: "这是我的第一篇博客，记录一下开始写博客的心情和初衷。",
     body: `<p>一直想有一个属于自己的地方，可以记录思考、分享知识。今天终于动手做了出来。</p>
 <p>这个博客完全用纯 HTML、CSS 和 JavaScript 构建，没有使用任何框架或构建工具。简单、轻量，而且完全可控。</p>
@@ -32,6 +32,7 @@ const SEED_ARTICLES = [
     title: "JavaScript 异步编程入门",
     date: "2026-05-12",
     category: "技术",
+    image: "https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&q=80",
     summary: "理解 Promise、async/await 和事件循环，掌握现代 JavaScript 异步编程的核心概念。",
     body: `<p>JavaScript 的异步编程模型是每个前端开发者必须掌握的核心技能。从回调函数到 Promise，再到 async/await，异步编程的写法越来越优雅。</p>
 <h2>从回调到 Promise</h2>
@@ -69,6 +70,7 @@ const SEED_ARTICLES = [
     title: "VS Code 效率提升指南",
     date: "2026-05-14",
     category: "技术",
+    image: "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=800&q=80",
     summary: "分享一些 VS Code 的实用技巧和快捷键，让你的编码效率翻倍。",
     body: `<p>VS Code 是目前最流行的代码编辑器，但它强大的功能往往被低估。今天分享几个能显著提升效率的技巧。</p>
 <h2>命令面板（Ctrl+Shift+P）</h2>
@@ -86,6 +88,7 @@ const SEED_ARTICLES = [
     title: "周末徒步记",
     date: "2026-05-15",
     category: "生活",
+    image: "https://images.unsplash.com/photo-1551632811-561732d1e306?w=800&q=80",
     summary: "周末和朋友们一起去郊外徒步，远离屏幕，感受大自然的美好。",
     body: `<p>上周末天气特别好，约了几个朋友一起去郊外的山林徒步。全程大概 12 公里，虽然有点累，但非常值得。</p>
 <h2>出发</h2>
@@ -98,7 +101,6 @@ const SEED_ARTICLES = [
   }
 ];
 
-// === 全局文章列表 ===
 let articles = [];
 
 // === 从 Firestore 加载文章 ===
@@ -112,20 +114,16 @@ async function loadArticles() {
         title: data.title,
         date: data.date,
         category: data.category,
+        image: data.image || '',
         summary: data.summary,
         body: data.body
       };
     });
-    // 合并：种子文章 + 云端文章，去重（云端覆盖同 id 种子文章）
-    const seedIds = new Set(SEED_ARTICLES.map(a => String(a.id)));
     const cloudIds = new Set(firestoreArticles.map(a => String(a.id)));
     const merged = [...firestoreArticles];
     SEED_ARTICLES.forEach(a => {
-      if (!cloudIds.has(String(a.id))) {
-        merged.push(a);
-      }
+      if (!cloudIds.has(String(a.id))) merged.push(a);
     });
-    // 按日期降序排列
     merged.sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
     articles = merged;
   } catch (e) {
@@ -135,7 +133,7 @@ async function loadArticles() {
 }
 
 // === 保存文章到 Firestore ===
-async function saveArticle(title, category, bodyHTML) {
+async function saveArticle(title, category, image, bodyHTML) {
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
   const summary = bodyHTML.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
@@ -145,6 +143,7 @@ async function saveArticle(title, category, bodyHTML) {
     title: title,
     category: category,
     date: dateStr,
+    image: image || '',
     summary: summary + (summary.length >= 120 ? '...' : ''),
     body: bodyHTML,
     originId: originId,
@@ -154,34 +153,21 @@ async function saveArticle(title, category, bodyHTML) {
   return originId;
 }
 
-// === Markdown 转 HTML（简易） ===
+// === Markdown 转 HTML ===
 function markdownToHTML(md) {
   let html = md;
-  // 转义 HTML
   html = html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  // 代码块 ```
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-  // 行内代码 ``
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-  // 标题 ###
   html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-  // 标题 ##
   html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-  // 标题 #
   html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
-  // 粗体
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  // 斜体
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-  // 空行分隔段落
   html = html.replace(/\n\n/g, '</p><p>');
-  // 单换行变 <br>
   html = html.replace(/\n/g, '<br>');
-  // 包裹段落
   html = '<p>' + html + '</p>';
-  // 清理空段落
   html = html.replace(/<p><\/p>/g, '');
-  // 清理 pre 内的 br
   html = html.replace(/<pre><code>([\s\S]*?)<\/code><\/pre>/g, function(m, inner) {
     return '<pre><code>' + inner.replace(/<br>/g, '\n').replace(/<p>/g, '').replace(/<\/p>/g, '') + '</code></pre>';
   });
@@ -205,13 +191,16 @@ function renderHome(query) {
     empty.style.display = 'none';
     list.innerHTML = filtered.map(a => `
       <div class="article-card" onclick="location.hash='#/post/${a.id}'">
-        <span class="category">${a.category}</span>
-        <h2>${a.title}</h2>
-        <div class="meta">
-          <span>📅 ${a.date}</span>
-          <span>🏷 ${a.category}</span>
+        ${a.image ? `<div class="card-cover"><img src="${a.image}" alt="${a.title}" loading="lazy" onerror="this.parentElement.style.display='none'"></div>` : ''}
+        <div class="card-body">
+          <span class="category">${a.category}</span>
+          <h2>${a.title}</h2>
+          <div class="meta">
+            <span>📅 ${a.date}</span>
+            <span>🏷 ${a.category}</span>
+          </div>
+          <p class="summary">${a.summary}</p>
         </div>
-        <p class="summary">${a.summary}</p>
       </div>
     `).join('');
   }
@@ -254,7 +243,13 @@ function renderPost(id) {
   const article = articles.find(a => String(a.id) === String(id));
   if (!article) return;
 
+  let coverHTML = '';
+  if (article.image) {
+    coverHTML = `<div class="post-cover"><img src="${article.image}" alt="${article.title}" onerror="this.style.display='none'"></div>`;
+  }
+
   document.getElementById('post-content').innerHTML = `
+    ${coverHTML}
     <div class="post-header">
       <h1>${article.title}</h1>
       <div class="meta">
@@ -267,6 +262,30 @@ function renderPost(id) {
 
   loadGiscus('post-' + id);
 }
+
+// === 音乐播放器 ===
+let musicPlaying = false;
+document.addEventListener('DOMContentLoaded', function() {
+  const toggle = document.getElementById('music-toggle');
+  const audio = document.getElementById('bg-music');
+  const player = document.getElementById('music-player');
+
+  toggle.addEventListener('click', function() {
+    if (musicPlaying) {
+      audio.pause();
+      toggle.textContent = '🎵';
+      player.classList.remove('playing');
+    } else {
+      audio.play().then(() => {
+        toggle.textContent = '🎶';
+        player.classList.add('playing');
+      }).catch(() => {
+        alert('音乐加载中，请再点一次');
+      });
+    }
+    musicPlaying = !musicPlaying;
+  });
+});
 
 // === 路由 ===
 function route() {
@@ -319,6 +338,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     e.preventDefault();
     const title = document.getElementById('publish-title').value.trim();
     const category = document.getElementById('publish-category').value;
+    const image = document.getElementById('publish-image').value.trim();
     const bodyMD = document.getElementById('publish-body').value.trim();
     if (!title || !category || !bodyMD) return;
 
@@ -328,8 +348,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     try {
       const bodyHTML = markdownToHTML(bodyMD);
-      const newId = await saveArticle(title, category, bodyHTML);
-      // 添加到本地列表头部
+      const newId = await saveArticle(title, category, image, bodyHTML);
       const now = new Date();
       const dateStr = now.toISOString().split('T')[0];
       const summary = bodyHTML.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
@@ -338,6 +357,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         title: title,
         date: dateStr,
         category: category,
+        image: image,
         summary: summary + (summary.length >= 120 ? '...' : ''),
         body: bodyHTML
       });
